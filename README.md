@@ -28,6 +28,7 @@ Atualmente, o **Campus Rota** está disponível em formato de **plataforma Web (
 
 
 Desenvolvedores:
+
 Rychard Eduardo da Silva Santos - [GitHub]https://github.com/zrychardd
 
 Wesley Almeida da Silva - [GitHub]https://github.com/wesleyalmeidasilva321123-dotcom

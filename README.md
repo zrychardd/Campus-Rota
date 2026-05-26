@@ -39,6 +39,21 @@ A plataforma permite que estudantes pesquisem rotas, reservem viagens e acompanh
 
 ---
 
+## 🌐 Ambiente de execução
+
+Atualmente o sistema funciona em **ambiente local**, sendo executado diretamente no computador durante desenvolvimento e testes.
+
+Exemplo:
+
+```txt
+http://localhost:3000/login.html
+```
+
+Em futuras versões o projeto poderá ser disponibilizado online para acesso através da internet.
+
+---
+
+
 ## 📦 Pré-requisitos
 
 Antes de executar o projeto, instale:
@@ -64,19 +79,6 @@ npm -v
 
 ---
 
-### Git
-
-Baixar:
-
-[Git](https://git-scm.com/install/)
-
-Verificar instalação:
-
-```bash
-git --version
-```
-
----
 
 ### Prisma CLI
 
@@ -203,6 +205,42 @@ npx prisma studio --schema=src/prisma/schema.prisma
 ```bash
 npm run dev
 ```
+
+
+## Front-end
+
+Abra outro terminal:
+
+### 8 - Entrar na pasta frontend
+
+```bash
+cd frontend
+```
+
+### 9 - Iniciar servidor local
+
+```bash
+npx serve .
+```
+
+Após executar o comando será exibido um endereço parecido com:
+
+```txt
+http://localhost:3000
+```
+
+Abra o navegador e clique em:
+
+```txt
+login.html
+```
+
+ou acesse diretamente:
+
+```txt
+http://localhost:3000/login.html
+```
+
 
 ---
 

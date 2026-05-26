@@ -52,8 +52,7 @@ Node.js 18+
 ```
 
 Baixar:
-
-:contentReference[oaicite:0]{index=0}
+[Nodejs](https://nodejs.org/pt-br)
 
 Verificar instalação:
 

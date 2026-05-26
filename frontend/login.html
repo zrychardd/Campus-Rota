@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Rota — Login</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .link-esqueci{text-align:right;font-size:12px;margin-top:-6px;margin-bottom:4px}
+    .link-esqueci a{color:var(--blue);text-decoration:none;font-weight:500}
+    .link-esqueci a:hover{text-decoration:underline}
+    .erro-msg{color:#e53935;font-size:13px;text-align:center;margin-top:4px;display:none}
+  </style>
+</head>
+<body>
+<div class="phone">
+  <div class="logo-area">
+    <div class="logo">
+      <span class="logo-campus">CAMPUS</span>
+      <span class="logo-rota">ROTA</span>
+    </div>
+  </div>
+  <div class="logo-sub">VANS E UTILITÁRIOS</div>
+
+  <div class="toggle" id="login-toggle">
+    <button class="toggle-btn" onclick="setLoginType('estudante')">Estudante</button>
+    <button class="toggle-btn active" onclick="setLoginType('motorista')">Motorista</button>
+  </div>
+
+  <div class="form-area">
+    <input class="inp" id="login-field1" placeholder="CPF" />
+    <div class="password-wrap"><input class="inp" type="password" id="login-senha" placeholder="Senha" /><button type="button" class="toggle-pass" onclick="toggleSenha('login-senha', this)" aria-label="Mostrar senha">👁️</button></div>
+    <div class="link-esqueci">
+      <a href="esqueci-senha.html">Esqueci minha senha</a>
+    </div>
+    <div id="login-erro" class="erro-msg"></div>
+    <button class="btn-green" id="btn-login" onclick="doLogin()">ENTRAR</button>
+    <div class="link-row">Não tem uma conta? <a href="cadastro.html">Cadastre-se</a></div>
+  </div>
+
+  <div class="version">Versão 1.0</div>
+</div>
+
+<script>
+  const BASE = 'http://localhost:3001/api';
+  let tipoAtual = 'MOTORISTA';
+
+  // Auto-login
+  const token = localStorage.getItem('cr_token');
+  const user  = JSON.parse(localStorage.getItem('cr_user') || 'null');
+  if (token && user) {
+    window.location.href = user.tipo === 'ESTUDANTE' ? 'home-estudante.html' : 'home-motorista.html';
+  }
+
+  function setLoginType(tipo) {
+    tipoAtual = tipo.toUpperCase();
+    document.querySelectorAll('#login-toggle .toggle-btn').forEach((b, i) => {
+      b.classList.toggle('active', i === (tipoAtual === 'ESTUDANTE' ? 0 : 1));
+    });
+    document.getElementById('login-field1').placeholder = tipoAtual === 'ESTUDANTE' ? 'RA' : 'CPF';
+  }
+
+  function toggleSenha(id, btn) {
+    const input = document.getElementById(id);
+    const mostrar = input.type === 'password';
+    input.type = mostrar ? 'text' : 'password';
+    btn.textContent = mostrar ? '🙈' : '👁️';
+    btn.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+  }
+
+  function showErro(msg) {
+    const el = document.getElementById('login-erro');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  async function doLogin() {
+    const identificador = document.getElementById('login-field1').value.trim();
+    const senha         = document.getElementById('login-senha').value;
+    const btn           = document.getElementById('btn-login');
+    document.getElementById('login-erro').style.display = 'none';
+
+    if (!identificador || !senha) return showErro('Preencha todos os campos.');
+
+    btn.disabled = true; btn.textContent = 'Entrando...';
+    try {
+      const res  = await fetch(`${BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identificador, senha, tipo: tipoAtual })
+      });
+      const data = await res.json();
+      if (!res.ok) return showErro(data.erro || 'Erro ao entrar.');
+      localStorage.setItem('cr_token', data.token);
+      localStorage.setItem('cr_user',  JSON.stringify(data.usuario));
+      window.location.href = data.usuario.tipo === 'ESTUDANTE' ? 'home-estudante.html' : 'home-motorista.html';
+    } catch { showErro('Servidor offline. Verifique o backend.'); }
+    finally  { btn.disabled = false; btn.textContent = 'ENTRAR'; }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => setLoginType('motorista'));
+</script>
+</body>
+</html>

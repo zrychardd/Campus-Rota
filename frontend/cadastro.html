@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Rota — Cadastro</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .field label { font-size: 13px; color: #888; margin-bottom: 4px; display: block; }
+    .section-sep { font-size: 12px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; padding: 4px 0 2px; border-top: 1px solid #eee; margin-top: 4px; }
+    .erro-msg { background: #fdecea; color: #c62828; border-radius: 8px; padding: 10px; font-size: 13px; display: none; }
+    select.inp { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; cursor: pointer; }
+  </style>
+</head>
+<body>
+<div class="phone" style="display:flex;flex-direction:column;min-height:640px">
+
+  <div class="logo-area">
+    <div class="logo"><span class="logo-campus">CAMPUS</span><span class="logo-rota">ROTA</span></div>
+  </div>
+  <div class="logo-sub">VANS E UTILITÁRIOS</div>
+
+  <!-- Toggle -->
+  <div class="toggle" id="login-toggle">
+    <button class="toggle-btn" onclick="setTipo('ESTUDANTE')">Estudante</button>
+    <button class="toggle-btn active" onclick="setTipo('MOTORISTA')">Motorista</button>
+  </div>
+
+  <div class="form-area" style="gap:10px">
+
+    <!-- Dados pessoais -->
+    <div class="field"><label>Nome completo</label><input class="inp" id="cad-nome" placeholder="Ex: João Silva" /></div>
+    <div class="field"><label>E-mail</label><input class="inp" id="cad-email" type="email" placeholder="Ex: joao@email.com" /></div>
+    <div class="field"><label>Senha</label><div class="password-wrap"><input class="inp" id="cad-senha" type="password" placeholder="Mínimo 6 caracteres" /><button type="button" class="toggle-pass" onclick="toggleSenha('cad-senha', this)" aria-label="Mostrar senha">👁️</button></div></div>
+
+    <!-- Campo dinâmico RA ou CPF -->
+    <div class="field" id="campo-ra">
+      <label>RA (Registro Acadêmico)</label>
+      <input class="inp" id="cad-ra" placeholder="Ex: RA123456" />
+    </div>
+    <div class="field" id="campo-cpf" style="display:none">
+      <label>CPF</label>
+      <input class="inp" id="cad-cpf" placeholder="Ex: 000.000.000-00" />
+    </div>
+
+    <!-- Pergunta de segurança -->
+    <div class="section-sep">🔒 Segurança da Conta</div>
+
+    <div class="field">
+      <label>Pergunta de segurança</label>
+      <select class="inp" id="cad-pergunta">
+        <option value="">Escolha uma pergunta...</option>
+        <option value="Qual o nome do seu primeiro animal de estimação?">Qual o nome do seu primeiro animal de estimação?</option>
+        <option value="Qual o nome da sua mãe?">Qual o nome da sua mãe?</option>
+        <option value="Em qual cidade você nasceu?">Em qual cidade você nasceu?</option>
+        <option value="Qual o nome da sua escola primária?">Qual o nome da sua escola primária?</option>
+        <option value="Qual o modelo do seu primeiro carro?">Qual o modelo do seu primeiro carro?</option>
+        <option value="Qual o apelido da sua infância?">Qual o apelido da sua infância?</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Resposta</label>
+      <input class="inp" id="cad-resposta" placeholder="Sua resposta (guarde bem!)" />
+    </div>
+
+    <div id="cad-erro" class="erro-msg"></div>
+
+    <button class="btn-green" id="btn-cadastrar" onclick="doCadastro()">CADASTRAR</button>
+    <div class="link-row">Já tem conta? <a href="login.html">Entrar</a></div>
+  </div>
+
+  <div class="version">Versão 1.0</div>
+</div>
+
+<script>
+  const BASE = 'http://localhost:3001/api';
+  let tipoAtual = 'MOTORISTA';
+
+  function toggleSenha(id, btn) {
+    const input = document.getElementById(id);
+    const mostrar = input.type === 'password';
+    input.type = mostrar ? 'text' : 'password';
+    btn.textContent = mostrar ? '🙈' : '👁️';
+    btn.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+  }
+
+  function setTipo(tipo) {
+    tipoAtual = tipo;
+    document.querySelectorAll('#login-toggle .toggle-btn').forEach((b, i) => {
+      b.classList.toggle('active', i === (tipo === 'ESTUDANTE' ? 0 : 1));
+    });
+    document.getElementById('campo-ra').style.display  = tipo === 'ESTUDANTE' ? '' : 'none';
+    document.getElementById('campo-cpf').style.display = tipo === 'MOTORISTA' ? '' : 'none';
+  }
+
+  function showErro(msg) {
+    const el = document.getElementById('cad-erro');
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function hideErro() { document.getElementById('cad-erro').style.display = 'none'; }
+
+  async function doCadastro() {
+    hideErro();
+    const nome      = document.getElementById('cad-nome').value.trim();
+    const email     = document.getElementById('cad-email').value.trim();
+    const senha     = document.getElementById('cad-senha').value;
+    const ra        = document.getElementById('cad-ra').value.trim();
+    const cpf       = document.getElementById('cad-cpf').value.trim();
+    const pergunta  = document.getElementById('cad-pergunta').value;
+    const resposta  = document.getElementById('cad-resposta').value.trim();
+    const btn       = document.getElementById('btn-cadastrar');
+
+    // Validações
+    if (!nome)    return showErro('Informe seu nome completo.');
+    if (!email)   return showErro('Informe seu e-mail.');
+    if (senha.length < 6) return showErro('A senha deve ter no mínimo 6 caracteres.');
+    if (tipoAtual === 'ESTUDANTE' && !ra)  return showErro('Informe seu RA.');
+    if (tipoAtual === 'MOTORISTA' && !cpf) return showErro('Informe seu CPF.');
+    if (!pergunta) return showErro('Escolha uma pergunta de segurança.');
+    if (!resposta) return showErro('Informe a resposta da pergunta de segurança.');
+
+    btn.disabled = true;
+    btn.textContent = 'Cadastrando...';
+
+    try {
+      const res = await fetch(`${BASE}/auth/cadastro`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome, email, senha, tipo: tipoAtual,
+          ...(tipoAtual === 'ESTUDANTE' ? { ra } : { cpf }),
+          perguntaSeg: pergunta,
+          respostaSeg: resposta,
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) return showErro(data.erro || 'Erro ao cadastrar.');
+
+      localStorage.setItem('cr_token', data.token);
+      localStorage.setItem('cr_user',  JSON.stringify(data.usuario));
+
+      window.location.href = data.usuario.tipo === 'ESTUDANTE'
+        ? 'home-estudante.html'
+        : 'home-motorista.html';
+
+    } catch {
+      showErro('Servidor offline. Verifique se o backend está rodando.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'CADASTRAR';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => setTipo('MOTORISTA'));
+</script>
+</body>
+</html>

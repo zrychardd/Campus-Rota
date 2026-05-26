@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Rota — Perfil</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .sucesso-msg{background:#d4edda;color:#155724;border-radius:8px;padding:10px;font-size:13px;text-align:center;margin-top:8px;display:none}
+    .erro-msg{background:#f8d7da;color:#721c24;border-radius:8px;padding:10px;font-size:13px;text-align:center;margin-top:8px;display:none}
+  </style>
+</head>
+<body>
+<div class="phone" style="display:flex;flex-direction:column;min-height:640px">
+
+  <!-- Header -->
+  <div class="perfil-header">
+    <button class="back-btn" onclick="window.history.back()">←</button>
+    <span class="perfil-title">Editar Perfil</span>
+    <button onclick="logout()" style="background:none;border:none;font-size:12px;color:#888;cursor:pointer">Sair</button>
+  </div>
+
+  <!-- Avatar -->
+  <div class="avatar-area">
+    <div class="avatar">👤</div>
+    <div class="perfil-name" id="perfil-nome">Carregando...</div>
+    <div class="perfil-role" id="perfil-tipo">—</div>
+  </div>
+
+  <!-- Formulário -->
+  <div class="perfil-form">
+    <div class="field"><label>Nome</label><input class="inp" id="inp-nome" placeholder="Nome" /></div>
+    <div class="field"><label>Sobrenome</label><input class="inp" id="inp-sobrenome" placeholder="Sobrenome" /></div>
+    <div class="field"><label>E-mail</label><input class="inp" id="inp-email" placeholder="E-mail" disabled style="opacity:.6" /></div>
+    <div class="field" id="campo-ra" style="display:none"><label>RA</label><input class="inp" id="inp-ra" disabled style="opacity:.6" /></div>
+    <div class="field" id="campo-cpf" style="display:none"><label>CPF</label><input class="inp" id="inp-cpf" disabled style="opacity:.6" /></div>
+  </div>
+
+  <!-- Notificações -->
+  <div class="notif-section" style="padding:12px 20px 0">
+    <div class="notif-title">Preferências de Notificação</div>
+    <div class="notif-item"><input type="checkbox" id="n-email" checked><label for="n-email">Email</label></div>
+    <div class="notif-item"><input type="checkbox" id="n-sms"><label for="n-sms">SMS</label></div>
+    <div class="notif-item"><input type="checkbox" id="n-push" checked><label for="n-push">Notificações Push</label></div>
+  </div>
+
+  <div id="msg-sucesso" class="sucesso-msg">✔ Perfil atualizado com sucesso!</div>
+  <div id="msg-erro"    class="erro-msg">Erro ao salvar. Tente novamente.</div>
+
+  <!-- Salvar -->
+  <div class="perfil-save">
+    <button class="btn-green" id="btn-salvar" onclick="salvarPerfil()">Salvar Alterações</button>
+  </div>
+
+  <!-- Nav -->
+  <div class="bottom-nav">
+    <button class="nav-item" onclick="goHome()"><span class="ic">🏠</span><span>Home</span></button>
+    <button class="nav-item" onclick="goHistorico()"><span class="ic">🕐</span><span>Histórico</span></button>
+    <button class="nav-item" onclick="goReservas()"><span class="ic">🪑</span><span>Reservas</span></button>
+    <button class="nav-item active"><span class="ic">👤</span><span>Perfil</span></button>
+  </div>
+</div>
+
+
+<script>
+  const BASE  = 'http://localhost:3001/api';
+  const token = localStorage.getItem('cr_token');
+  const user  = JSON.parse(localStorage.getItem('cr_user') || 'null');
+
+  if (!token || !user) window.location.href = 'login.html';
+
+  function goTo(p){ window.location.href = p; }
+
+  function isMotorista(){
+    return user && String(user.tipo).toUpperCase() === 'MOTORISTA';
+  }
+
+  function goHome(){
+    window.location.href = isMotorista() ? 'home-motorista.html' : 'home-estudante.html';
+  }
+
+  function goHistorico(){
+    window.location.href = isMotorista() ? 'historico-motorista.html' : 'historico.html';
+  }
+
+  function goReservas(){
+    window.location.href = isMotorista() ? 'reservas-motorista.html' : 'reservas.html';
+  }
+
+  function logout(){
+    localStorage.removeItem('cr_token');
+    localStorage.removeItem('cr_user');
+    window.location.href = 'login.html';
+  }
+
+  async function carregarPerfil(){
+    try {
+      const res  = await fetch(`${BASE}/perfil/me`, { headers:{ Authorization:`Bearer ${token}` } });
+      const data = await res.json();
+
+      document.getElementById('perfil-nome').textContent  = `${data.nome}${data.sobrenome ? ' '+data.sobrenome : ''}`;
+      document.getElementById('perfil-tipo').textContent  = data.tipo === 'ESTUDANTE' ? 'Estudante' : 'Motorista';
+      document.getElementById('inp-nome').value      = data.nome || '';
+      document.getElementById('inp-sobrenome').value = data.sobrenome || '';
+      document.getElementById('inp-email').value     = data.email || '';
+
+      if (data.tipo === 'ESTUDANTE' && data.estudante) {
+        document.getElementById('campo-ra').style.display = '';
+        document.getElementById('inp-ra').value = data.estudante.ra || '';
+      }
+      if (data.tipo === 'MOTORISTA' && data.motorista) {
+        document.getElementById('campo-cpf').style.display = '';
+        document.getElementById('inp-cpf').value = data.motorista.cpf || '';
+      }
+    } catch {
+      document.getElementById('perfil-nome').textContent = user.nome;
+    }
+  }
+
+  async function salvarPerfil(){
+    const btn = document.getElementById('btn-salvar');
+    const ok  = document.getElementById('msg-sucesso');
+    const err = document.getElementById('msg-erro');
+    ok.style.display = err.style.display = 'none';
+
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+      await fetch(`${BASE}/perfil/me`, {
+        method: 'PUT',
+        headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: JSON.stringify({
+          nome:      document.getElementById('inp-nome').value.trim(),
+          sobrenome: document.getElementById('inp-sobrenome').value.trim(),
+        })
+      });
+      ok.style.display = 'block';
+      document.getElementById('perfil-nome').textContent =
+        `${document.getElementById('inp-nome').value} ${document.getElementById('inp-sobrenome').value}`.trim();
+    } catch {
+      err.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Salvar Alterações';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', carregarPerfil);
+</script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Rota — Motorista</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .header-top{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 0}
+    .btn-sair{background:none;border:1px solid #ddd;border-radius:8px;padding:6px 14px;font-size:12px;color:#888;cursor:pointer;transition:.2s}
+    .btn-sair:hover{background:#f5f5f5;color:#e53935}
+    .usuario-nome{font-size:12px;color:#888;margin-top:2px}
+    .empty-state{text-align:center;color:#bbb;font-size:13px;padding:30px 20px}
+    .status-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px}
+    .badge-pendente{background:#fff3cd;color:#856404}
+    .badge-andamento{background:#cce5ff;color:#004085}
+    .badge-concluida{background:#d4edda;color:#155724}
+  </style>
+</head>
+<body>
+<div class="phone" style="display:flex;flex-direction:column;min-height:640px">
+
+  <!-- Header -->
+  <div class="topbar">
+    <div class="logo">
+      <span class="logo-campus">CAMPUS</span>
+      <span class="logo-rota">ROTA</span>
+    </div>
+  </div>
+
+  <div class="header-top">
+    <div>
+      <div class="meu-dia-title" style="padding:0">Meu Dia</div>
+      <div class="usuario-nome" id="nome-usuario">Carregando...</div>
+    </div>
+  </div>
+
+  <!-- Abas -->
+  <div class="tabs">
+    <button class="tab active" data-status="PENDENTE"     onclick="mudarAba(this)">Pendentes</button>
+    <button class="tab"        data-status="EM_ANDAMENTO" onclick="mudarAba(this)">Em Andamento</button>
+    <button class="tab"        data-status="CONCLUIDA"    onclick="mudarAba(this)">Concluídas</button>
+  </div>
+
+  <!-- Lista de viagens -->
+  <div class="trips-list" id="lista-viagens">
+    <div class="empty-state">Carregando viagens...</div>
+  </div>
+
+  <!-- Nav inferior -->
+  <div class="bottom-nav">
+    <button class="nav-item active">
+      <span class="ic">🏠</span><span>Home</span>
+    </button>
+    <button class="nav-item" onclick="goTo('historico-motorista.html')">
+      <span class="ic">🕐</span><span>Histórico</span>
+    </button>
+    <button class="nav-item" onclick="window.location.href='reservas-motorista.html'">
+      <span class="ic">🪑</span><span>Reservas</span>
+    </button>
+    <button class="nav-item" onclick="goTo('perfil.html')">
+      <span class="ic">👤</span><span>Perfil</span>
+    </button>
+  </div>
+</div>
+
+<script>
+  const BASE  = 'http://localhost:3001/api';
+  const token = localStorage.getItem('cr_token');
+  const user  = JSON.parse(localStorage.getItem('cr_user') || 'null');
+
+  // ── Proteção de rota ──────────────────────────────
+  if (!token || !user) window.location.href = 'login.html';
+  if (user && user.tipo !== 'MOTORISTA') window.location.href = 'home-estudante.html';
+
+  let todasViagens = [];
+  let abaAtiva = 'PENDENTE';
+
+  function goTo(p){ window.location.href = p; }
+
+  function logout(){
+    localStorage.removeItem('cr_token');
+    localStorage.removeItem('cr_user');
+    window.location.href = 'login.html';
+  }
+
+  // ── Carrega perfil ────────────────────────────────
+  async function carregarPerfil(){
+    try {
+      const res  = await fetch(`${BASE}/perfil/me`, { headers:{ Authorization:`Bearer ${token}` } });
+      const data = await res.json();
+      document.getElementById('nome-usuario').textContent = `Olá, ${data.nome} 👋`;
+    } catch {
+      document.getElementById('nome-usuario').textContent = `Olá, ${user.nome} 👋`;
+    }
+  }
+
+  // ── Muda aba ──────────────────────────────────────
+  function mudarAba(btn){
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    abaAtiva = btn.dataset.status;
+    renderViagens();
+  }
+
+  function formatarHorario(valor){
+    if (!valor) return 'Agora';
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return 'Agora';
+    return data.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function labelStatus(status){
+    if (status === 'PENDENTE') return 'pendente';
+    if (status === 'EM_ANDAMENTO') return 'em andamento';
+    return 'concluída';
+  }
+
+  // ── Renderiza viagens filtradas ───────────────────
+  function renderViagens(){
+    const lista = document.getElementById('lista-viagens');
+    const filtradas = todasViagens.filter(v => v.status === abaAtiva);
+
+    if (!filtradas.length) {
+      lista.innerHTML = `<div class="empty-state">Nenhuma viagem ${labelStatus(abaAtiva)} hoje.</div>`;
+      return;
+    }
+
+    lista.innerHTML = filtradas.map(v => {
+      const horaStr = formatarHorario(v.horario);
+      const passageiros = Number(v.passageiros || 0);
+      const bancosLivres = Math.max(0, 8 - passageiros);
+
+      if (abaAtiva === 'PENDENTE') {
+        return `
+        <div class="trip-card">
+          <span class="badge-check">✔</span>
+          <div class="trip-time">${horaStr}</div>
+          <div class="trip-route">${v.partida} → ${v.destino}</div>
+          <div class="trip-pax">${passageiros} Passageiro${passageiros === 1 ? '' : 's'}</div>
+          <button class="btn-green" style="width:100%;margin-top:10px"
+            onclick="iniciarViagem('${v.id}')">INICIAR ROTA</button>
+          <div class="trip-seats">${bancosLivres} Banco${bancosLivres === 1 ? '' : 's'} Livre${bancosLivres === 1 ? '' : 's'}</div>
+        </div>`;
+      }
+
+      if (abaAtiva === 'EM_ANDAMENTO') {
+        return `
+        <div class="trip-card">
+          <span class="badge-check">🚐</span>
+          <div class="trip-time">Rota em andamento</div>
+          <div class="trip-route"><strong>Ponto A:</strong> ${v.partida}</div>
+          <div class="trip-route"><strong>Ponto B:</strong> ${v.destino}</div>
+          <div class="trip-pax">${passageiros} Passageiro${passageiros === 1 ? '' : 's'}</div>
+          <button class="btn-green" style="width:100%;margin-top:10px"
+            onclick="concluirViagem('${v.id}')">CONCLUIR ROTA</button>
+        </div>`;
+      }
+
+      return `
+      <div class="trip-card secondary">
+        <div>
+          <div class="trip-time" style="font-size:13px">${horaStr}</div>
+          <div class="trip-route">${v.partida} → ${v.destino}</div>
+          <div class="trip-pax">${passageiros} Passageiro${passageiros === 1 ? '' : 's'}</div>
+        </div>
+        <span class="status-badge badge-concluida">Concluída</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Inicia viagem ─────────────────────────────────
+  async function iniciarViagem(id){
+    try {
+      const res = await fetch(`${BASE}/viagem/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: JSON.stringify({ status: 'EM_ANDAMENTO' })
+      });
+
+      if (!res.ok) throw new Error('Erro ao iniciar rota.');
+      abaAtiva = 'EM_ANDAMENTO';
+      document.querySelectorAll('.tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.status === 'EM_ANDAMENTO');
+      });
+      await carregarViagens();
+    } catch {
+      alert('Erro ao iniciar rota.');
+    }
+  }
+
+  // ── Conclui viagem ────────────────────────────────
+  async function concluirViagem(id){
+    try {
+      const res = await fetch(`${BASE}/viagem/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: JSON.stringify({ status: 'CONCLUIDA' })
+      });
+
+      if (!res.ok) throw new Error('Erro ao concluir rota.');
+      abaAtiva = 'CONCLUIDA';
+      document.querySelectorAll('.tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.status === 'CONCLUIDA');
+      });
+      await carregarViagens();
+    } catch {
+      alert('Erro ao concluir rota.');
+    }
+  }
+
+  function verDetalhes(id){
+    window.location.href = `viagens-motorista.html?id=${id}`;
+  }
+
+  // ── Carrega viagens do motorista ──────────────────
+  async function carregarViagens(){
+    const lista = document.getElementById('lista-viagens');
+    lista.innerHTML = '<div class="empty-state">Carregando viagens...</div>';
+
+    try {
+      const res = await fetch(`${BASE}/viagem/minhas`, {
+        headers: { Authorization:`Bearer ${token}` }
+      });
+
+      if (!res.ok) throw new Error('Erro ao buscar viagens.');
+      todasViagens = await res.json();
+    } catch {
+      todasViagens = [];
+    }
+
+    renderViagens();
+  }
+
+  // ── Init ──────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    carregarPerfil();
+    carregarViagens();
+  });
+</script>
+</body>
+</html>

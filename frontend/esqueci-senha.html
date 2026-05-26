@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Rota — Redefinir Senha</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .step { display: none; flex-direction: column; gap: 12px; }
+    .step.active { display: flex; }
+    .step-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .step-sub   { font-size: 13px; color: #888; margin-top: -8px; }
+    .erro-msg   { background: #fdecea; color: #c62828; border-radius: 8px; padding: 10px; font-size: 13px; display: none; }
+    .sucesso-msg{ background: #e8f5e9; color: #2e7d32; border-radius: 8px; padding: 10px; font-size: 13px; display: none; }
+    .pergunta-box{ background: var(--gray); border-radius: 10px; padding: 14px; font-size: 14px; color: var(--blue); font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="phone" style="display:flex;flex-direction:column;min-height:640px">
+
+  <div class="perfil-header">
+    <button class="back-btn" onclick="window.location.href='login.html'">←</button>
+    <span class="perfil-title">Redefinir Senha</span>
+    <span style="width:28px"></span>
+  </div>
+
+  <div class="form-area" style="flex:1">
+
+    <!-- STEP 1: Identificação -->
+    <div class="step active" id="step1">
+      <div class="step-title">Quem é você?</div>
+      <div class="step-sub">Informe seu tipo de conta e identificador</div>
+
+      <div class="toggle" id="tipo-toggle" style="margin:0">
+        <button class="toggle-btn" onclick="setTipo('ESTUDANTE')">Estudante</button>
+        <button class="toggle-btn active" onclick="setTipo('MOTORISTA')">Motorista</button>
+      </div>
+
+      <input class="inp" id="s1-identificador" placeholder="CPF" />
+      <div id="s1-erro" class="erro-msg"></div>
+      <button class="btn-green" id="btn-s1" onclick="verificarUsuario()">CONTINUAR</button>
+    </div>
+
+    <!-- STEP 2: Pergunta de segurança -->
+    <div class="step" id="step2">
+      <div class="step-title">Pergunta de Segurança</div>
+      <div class="step-sub">Responda para confirmar sua identidade</div>
+      <div class="pergunta-box" id="pergunta-texto">—</div>
+      <input class="inp" id="s2-resposta" placeholder="Sua resposta" />
+      <div id="s2-erro" class="erro-msg"></div>
+      <button class="btn-green" id="btn-s2" onclick="verificarResposta()">VERIFICAR</button>
+    </div>
+
+    <!-- STEP 3: Nova senha -->
+    <div class="step" id="step3">
+      <div class="step-title">Nova Senha</div>
+      <div class="step-sub">Escolha uma senha com no mínimo 6 caracteres</div>
+      <div class="password-wrap"><input class="inp" type="password" id="s3-senha" placeholder="Nova senha" /><button type="button" class="toggle-pass" onclick="toggleSenha('s3-senha', this)" aria-label="Mostrar senha">👁️</button></div>
+      <div class="password-wrap"><input class="inp" type="password" id="s3-confirma" placeholder="Confirmar nova senha" /><button type="button" class="toggle-pass" onclick="toggleSenha('s3-confirma', this)" aria-label="Mostrar senha">👁️</button></div>
+      <div id="s3-erro" class="erro-msg"></div>
+      <div id="s3-ok"   class="sucesso-msg">✔ Senha redefinida! Redirecionando...</div>
+      <button class="btn-green" id="btn-s3" onclick="redefinirSenha()">SALVAR NOVA SENHA</button>
+    </div>
+
+  </div>
+
+  <div class="version">Versão 1.0</div>
+</div>
+
+<script>
+  const BASE = 'http://localhost:3001/api';
+  let tipoAtual  = 'MOTORISTA';
+  let usuarioId  = null;
+
+  function setTipo(tipo) {
+    tipoAtual = tipo;
+    document.querySelectorAll('#tipo-toggle .toggle-btn').forEach((b, i) => {
+      b.classList.toggle('active', i === (tipo === 'ESTUDANTE' ? 0 : 1));
+    });
+    document.getElementById('s1-identificador').placeholder = tipo === 'ESTUDANTE' ? 'RA' : 'CPF';
+  }
+
+  function goStep(n) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById(`step${n}`).classList.add('active');
+  }
+
+  function toggleSenha(id, btn) {
+    const input = document.getElementById(id);
+    const mostrar = input.type === 'password';
+    input.type = mostrar ? 'text' : 'password';
+    btn.textContent = mostrar ? '🙈' : '👁️';
+    btn.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+  }
+
+  function showErro(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function hideErro(id) { document.getElementById(id).style.display = 'none'; }
+
+  // Step 1 — verifica se usuário existe e busca pergunta
+  async function verificarUsuario() {
+    const identificador = document.getElementById('s1-identificador').value.trim();
+    hideErro('s1-erro');
+    if (!identificador) return showErro('s1-erro', 'Preencha o campo.');
+
+    const btn = document.getElementById('btn-s1');
+    btn.disabled = true; btn.textContent = 'Verificando...';
+
+    try {
+      const res  = await fetch(`${BASE}/auth/esqueci-senha/verificar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identificador, tipo: tipoAtual, respostaSeg: '__CHECK__' })
+      });
+      const data = await res.json();
+
+      // Se erro for "Resposta incorreta" significa que o usuário existe e tem pergunta cadastrada
+      if (data.erro === 'Resposta incorreta.' || data.ok) {
+        // Busca a pergunta do usuário
+        const res2  = await fetch(`${BASE}/auth/esqueci-senha/pergunta`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identificador, tipo: tipoAtual })
+        });
+        const data2 = await res2.json();
+        document.getElementById('pergunta-texto').textContent = data2.pergunta || 'Qual o nome do seu animal de estimação?';
+        goStep(2);
+      } else {
+        showErro('s1-erro', data.erro || 'Usuário não encontrado.');
+      }
+    } catch { showErro('s1-erro', 'Servidor offline.'); }
+    finally  { btn.disabled = false; btn.textContent = 'CONTINUAR'; }
+  }
+
+  // Step 2 — verifica resposta de segurança
+  async function verificarResposta() {
+    const identificador = document.getElementById('s1-identificador').value.trim();
+    const resposta      = document.getElementById('s2-resposta').value.trim();
+    hideErro('s2-erro');
+    if (!resposta) return showErro('s2-erro', 'Digite sua resposta.');
+
+    const btn = document.getElementById('btn-s2');
+    btn.disabled = true; btn.textContent = 'Verificando...';
+
+    try {
+      const res  = await fetch(`${BASE}/auth/esqueci-senha/verificar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identificador, tipo: tipoAtual, respostaSeg: resposta })
+      });
+      const data = await res.json();
+      if (!res.ok) return showErro('s2-erro', data.erro || 'Resposta incorreta.');
+      usuarioId = data.usuarioId;
+      goStep(3);
+    } catch { showErro('s2-erro', 'Servidor offline.'); }
+    finally  { btn.disabled = false; btn.textContent = 'VERIFICAR'; }
+  }
+
+  // Step 3 — redefine a senha
+  async function redefinirSenha() {
+    const nova     = document.getElementById('s3-senha').value;
+    const confirma = document.getElementById('s3-confirma').value;
+    hideErro('s3-erro');
+
+    if (!nova || !confirma)    return showErro('s3-erro', 'Preencha os dois campos.');
+    if (nova !== confirma)     return showErro('s3-erro', 'As senhas não coincidem.');
+    if (nova.length < 6)       return showErro('s3-erro', 'Mínimo de 6 caracteres.');
+
+    const btn = document.getElementById('btn-s3');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+
+    try {
+      const res  = await fetch(`${BASE}/auth/esqueci-senha/redefinir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuarioId, novaSenha: nova })
+      });
+      const data = await res.json();
+      if (!res.ok) return showErro('s3-erro', data.erro || 'Erro ao redefinir.');
+      document.getElementById('s3-ok').style.display = 'block';
+      btn.style.display = 'none';
+      setTimeout(() => window.location.href = 'login.html', 2000);
+    } catch { showErro('s3-erro', 'Servidor offline.'); }
+    finally  { btn.disabled = false; btn.textContent = 'SALVAR NOVA SENHA'; }
+  }
+</script>
+</body>
+</html>

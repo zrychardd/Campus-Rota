@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Rota — Histórico do Motorista</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .empty-state{text-align:center;color:#bbb;font-size:13px;padding:40px 20px}
+    .empty-icon{font-size:40px;margin-bottom:10px}
+    .tag-concluida{background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+    .data-header{font-size:13px;font-weight:700;color:#888;padding:12px 20px 6px}
+    .hist-resumo{margin:10px 20px 8px;background:#f7f7f7;border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+    .hist-resumo strong{font-size:20px;color:var(--blue)}
+    .hist-resumo span{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px}
+  </style>
+</head>
+<body>
+<div class="phone" style="display:flex;flex-direction:column;min-height:640px">
+
+  <div class="topbar">
+    <div class="logo">
+      <span class="logo-campus">CAMPUS</span>
+      <span class="logo-rota">ROTA</span>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px 4px">
+    <div style="font-size:20px;font-weight:700">Histórico</div>
+  </div>
+
+  <div class="hist-resumo">
+    <div><strong id="total-concluidas">0</strong><br><span>Rotas concluídas</span></div>
+    <div><strong id="total-passageiros">0</strong><br><span>Passageiros</span></div>
+  </div>
+
+  <div class="viagens-area" id="lista-historico" style="flex:1;overflow-y:auto">
+    <div class="empty-state"><div class="empty-icon">🕐</div>Carregando histórico...</div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="nav-item" onclick="goTo('home-motorista.html')"><span class="ic">🏠</span><span>Home</span></button>
+    <button class="nav-item active"><span class="ic">🕐</span><span>Histórico</span></button>
+    <button class="nav-item" onclick="goTo('reservas-motorista.html')"><span class="ic">🪑</span><span>Reservas</span></button>
+    <button class="nav-item" onclick="goTo('perfil.html')"><span class="ic">👤</span><span>Perfil</span></button>
+  </div>
+</div>
+
+<script>
+  const BASE  = 'http://localhost:3001/api';
+  const token = localStorage.getItem('cr_token');
+  const user  = JSON.parse(localStorage.getItem('cr_user') || 'null');
+
+  if (!token || !user) window.location.href = 'login.html';
+  if (user && user.tipo !== 'MOTORISTA') window.location.href = 'historico.html';
+
+  function goTo(p){ window.location.href = p; }
+
+  function agruparPorMes(items){
+    const grupos = {};
+    items.forEach(item => {
+      const data = new Date(item.horario || item.createdAt || new Date());
+      const chave = data.toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+      if (!grupos[chave]) grupos[chave] = [];
+      grupos[chave].push(item);
+    });
+    return grupos;
+  }
+
+  function formatarHora(valor){
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return '—';
+    return data.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  async function carregarHistoricoMotorista(){
+    const lista = document.getElementById('lista-historico');
+    try {
+      const res = await fetch(`${BASE}/viagem/minhas`, { headers:{ Authorization:`Bearer ${token}` } });
+      if (!res.ok) throw new Error('Erro ao buscar histórico.');
+
+      const viagens = await res.json();
+      const concluidas = viagens
+        .filter(v => String(v.status).toUpperCase() === 'CONCLUIDA')
+        .sort((a,b) => new Date(b.horario || b.createdAt) - new Date(a.horario || a.createdAt));
+
+      document.getElementById('total-concluidas').textContent = concluidas.length;
+      document.getElementById('total-passageiros').textContent = concluidas.reduce((t, v) => t + Number(v.passageiros || 0), 0);
+
+      if (!concluidas.length) {
+        lista.innerHTML = `<div class="empty-state"><div class="empty-icon">🕐</div>Nenhuma rota concluída ainda.<br><br>Quando você concluir uma rota na Home, ela aparece aqui.</div>`;
+        return;
+      }
+
+      const grupos = agruparPorMes(concluidas);
+      lista.innerHTML = Object.entries(grupos).map(([mes, items]) => `
+        <div class="data-header">${mes.charAt(0).toUpperCase() + mes.slice(1)}</div>
+        <div class="day-block">
+          ${items.map(v => `
+            <div class="day-trip">
+              <div class="day-trip-info">
+                <div class="day-trip-time">${formatarHora(v.horario)} • ${v.partida} → ${v.destino}</div>
+                <div class="day-trip-local">Ponto A: ${v.partida}</div>
+                <div class="day-trip-local">Ponto B: ${v.destino}</div>
+                <div class="day-trip-pax">${Number(v.passageiros || 0)} passageiro${Number(v.passageiros || 0) === 1 ? '' : 's'} • <span class="tag-concluida">✔ Concluída</span></div>
+              </div>
+            </div>`).join('')}
+        </div>`).join('');
+    } catch {
+      lista.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>Erro ao carregar histórico.</div>`;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', carregarHistoricoMotorista);
+</script>
+</body>
+</html>

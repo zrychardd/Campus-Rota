@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Rota — Detalhes da Viagem</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .detalhe-card{background:#f9f9f9;border-radius:14px;padding:20px;margin:16px 20px 0}
+    .detalhe-linha{display:flex;align-items:flex-start;gap:12px;margin-bottom:16px}
+    .detalhe-ic{font-size:22px;min-width:28px}
+    .detalhe-label{font-size:11px;color:#aaa;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+    .detalhe-valor{font-size:15px;font-weight:700;color:var(--text);margin-top:2px}
+    .confirmar-area{padding:20px;margin-top:auto}
+    .btn-confirmar{background:var(--green);color:#fff;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;width:100%;cursor:pointer;letter-spacing:.5px}
+    .btn-confirmar:disabled{background:#ccc;cursor:not-allowed}
+    .sucesso-box{background:#e8f5e9;color:#2e7d32;border-radius:12px;padding:20px;text-align:center;display:none}
+    .sucesso-box .ic{font-size:40px;margin-bottom:8px}
+    .info-box{background:#e3f2fd;color:#1565c0;border-radius:10px;padding:14px;font-size:13px;margin:14px 20px 0;line-height:1.5}
+    .erro-box{background:#fdecea;color:#c62828;border-radius:10px;padding:14px;font-size:13px;margin:10px 20px 0;display:none}
+  </style>
+</head>
+<body>
+<div class="phone" style="display:flex;flex-direction:column;min-height:640px">
+
+  <div class="perfil-header">
+    <button class="back-btn" onclick="window.history.back()">←</button>
+    <span class="perfil-title">Detalhes da Viagem</span>
+    <span style="width:28px"></span>
+  </div>
+
+  <div class="detalhe-card">
+    <div class="detalhe-linha">
+      <span class="detalhe-ic">📍</span>
+      <div>
+        <div class="detalhe-label">Local de Partida</div>
+        <div class="detalhe-valor" id="d-partida">Carregando...</div>
+      </div>
+    </div>
+    <div class="detalhe-linha">
+      <span class="detalhe-ic">🎓</span>
+      <div>
+        <div class="detalhe-label">Destino</div>
+        <div class="detalhe-valor" id="d-destino">Carregando...</div>
+      </div>
+    </div>
+    <div class="detalhe-linha">
+      <span class="detalhe-ic">👤</span>
+      <div>
+        <div class="detalhe-label">Motorista</div>
+        <div class="detalhe-valor" id="d-nome">Carregando...</div>
+      </div>
+    </div>
+    <div class="detalhe-linha">
+      <span class="detalhe-ic">🕐</span>
+      <div>
+        <div class="detalhe-label">Próxima Viagem</div>
+        <div class="detalhe-valor" id="d-horario">Carregando...</div>
+      </div>
+    </div>
+    <div class="detalhe-linha" style="margin-bottom:0">
+      <span class="detalhe-ic">🚐</span>
+      <div>
+        <div class="detalhe-label">Tipo de Transporte</div>
+        <div class="detalhe-valor">Van Universitária</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    ℹ️ Ao confirmar sua presença, o motorista poderá aceitar sua solicitação. Acompanhe o status em <strong>Reservas</strong>.
+  </div>
+
+  <div class="erro-box" id="erro-box"></div>
+
+  <div class="confirmar-area">
+    <div class="sucesso-box" id="sucesso-box">
+      <div class="ic">✅</div>
+      <p style="font-size:14px;font-weight:600;margin:0">Reserva enviada!<br>Aguardando confirmação do motorista.</p>
+      <br>
+      <a href="reservas.html" style="color:var(--blue);font-weight:600;font-size:13px">Ver minhas reservas →</a>
+    </div>
+    <button class="btn-confirmar" id="btn-confirmar">✔ CONFIRMAR PRESENÇA</button>
+  </div>
+
+</div>
+
+<script>
+  var BASE  = 'http://localhost:3001/api';
+  var token = localStorage.getItem('cr_token');
+  var user  = JSON.parse(localStorage.getItem('cr_user') || 'null');
+
+  if (!token || !user) window.location.href = 'login.html';
+
+  // Lê do sessionStorage em vez da URL
+  var partida = sessionStorage.getItem('cr_partida') || '';
+  var destino = sessionStorage.getItem('cr_destino') || '';
+  var motoristaDisponivel = null;
+  var viagemDisponivel = null;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Preenche os campos
+    document.getElementById('d-partida').textContent = partida || 'Não informado';
+    document.getElementById('d-destino').textContent = destino || 'Não informado';
+
+    // Carrega o motorista disponível para a rota escolhida
+    carregarMotoristaDisponivel();
+
+    // Botão confirmar
+    document.getElementById('btn-confirmar').addEventListener('click', confirmarPresenca);
+  });
+
+  function formatarHorario(valor) {
+    if (!valor) return 'Horário a definir';
+    var data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return 'Horário a definir';
+    return data.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function carregarMotoristaDisponivel() {
+    var nomeEl = document.getElementById('d-nome');
+    var horarioEl = document.getElementById('d-horario');
+
+    if (!partida || !destino) {
+      nomeEl.textContent = 'Não informado';
+      horarioEl.textContent = 'Não informado';
+      return;
+    }
+
+    fetch(BASE + '/viagem/disponivel?partida=' + encodeURIComponent(partida) + '&destino=' + encodeURIComponent(destino), {
+      headers: { Authorization: 'Bearer ' + token }
+    })
+      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+      .then(function(result) {
+        if (!result.ok || !result.data.motorista) {
+          nomeEl.textContent = 'Nenhum motorista disponível';
+        horarioEl.textContent = 'Horário indisponível';
+          horarioEl.textContent = 'Horário indisponível';
+          return;
+        }
+
+        motoristaDisponivel = result.data.motorista;
+        viagemDisponivel = result.data;
+        nomeEl.textContent = motoristaDisponivel.nome +
+          (motoristaDisponivel.sobrenome ? ' ' + motoristaDisponivel.sobrenome : '');
+        horarioEl.textContent = formatarHorario(result.data.horario);
+      })
+      .catch(function() {
+        nomeEl.textContent = 'Nenhum motorista disponível';
+        horarioEl.textContent = 'Horário indisponível';
+      });
+  }
+
+  function confirmarPresenca() {
+    var btn    = document.getElementById('btn-confirmar');
+    var erroEl = document.getElementById('erro-box');
+    erroEl.style.display = 'none';
+
+    if (!partida || !destino) {
+      erroEl.textContent = 'Erro: partida ou destino não identificados. Volte e tente novamente.';
+      erroEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = 'Enviando...';
+
+    fetch(BASE + '/reserva', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        partida: partida,
+        destino: destino,
+        motoristaId: motoristaDisponivel ? motoristaDisponivel.id : null,
+        viagemId: viagemDisponivel && viagemDisponivel.id ? viagemDisponivel.id : null,
+        horario: viagemDisponivel && viagemDisponivel.horario ? viagemDisponivel.horario : null
+      })
+    })
+    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+    .then(function(result) {
+      if (result.ok) {
+        btn.style.display = 'none';
+        document.getElementById('sucesso-box').style.display = 'block';
+      } else {
+        erroEl.textContent = result.data.erro || 'Erro ao confirmar presença.';
+        erroEl.style.display = 'block';
+        btn.disabled    = false;
+        btn.textContent = '✔ CONFIRMAR PRESENÇA';
+      }
+    })
+    .catch(function() {
+      erroEl.textContent = 'Servidor offline. Verifique se o backend está rodando.';
+      erroEl.style.display = 'block';
+      btn.disabled    = false;
+      btn.textContent = '✔ CONFIRMAR PRESENÇA';
+    });
+  }
+</script>
+</body>
+</html>

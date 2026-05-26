@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Rota — Histórico</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .empty-state{text-align:center;color:#bbb;font-size:13px;padding:40px 20px}
+    .empty-icon{font-size:40px;margin-bottom:10px}
+    .tag-concluida{background:#d4edda;color:#155724;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+    .data-header{font-size:13px;font-weight:700;color:#888;padding:12px 20px 6px}
+  </style>
+</head>
+<body>
+<div class="phone" style="display:flex;flex-direction:column;min-height:640px">
+
+  <!-- Header -->
+  <div class="topbar">
+    <div class="logo">
+      <span class="logo-campus">CAMPUS</span>
+      <span class="logo-rota">ROTA</span>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px 4px">
+    <div style="font-size:20px;font-weight:700">Histórico</div>
+  </div>
+
+  <!-- Lista -->
+  <div class="viagens-area" id="lista-historico">
+    <div class="empty-state"><div class="empty-icon">🕐</div>Carregando histórico...</div>
+  </div>
+
+  <!-- Nav -->
+  <div class="bottom-nav">
+    <button class="nav-item" onclick="goHome()"><span class="ic">🏠</span><span>Home</span></button>
+    <button class="nav-item active"><span class="ic">🕐</span><span>Histórico</span></button>
+    <button class="nav-item" onclick="goReservas()"><span class="ic">🪑</span><span>Reservas</span></button>
+    <button class="nav-item" onclick="goTo('perfil.html')"><span class="ic">👤</span><span>Perfil</span></button>
+  </div>
+</div>
+
+<script>
+  const BASE  = 'http://localhost:3001/api';
+  const token = localStorage.getItem('cr_token');
+  const user  = JSON.parse(localStorage.getItem('cr_user') || 'null');
+
+  if (!token || !user) window.location.href = 'login.html';
+  if (user && String(user.tipo).toUpperCase() === 'MOTORISTA') window.location.href = 'historico-motorista.html';
+
+  function goTo(p){ window.location.href = p; }
+
+  function isMotorista(){
+    return user && String(user.tipo).toUpperCase() === 'MOTORISTA';
+  }
+
+  function goHome(){
+    window.location.href = isMotorista() ? 'home-motorista.html' : 'home-estudante.html';
+  }
+
+  function goReservas(){
+    window.location.href = isMotorista() ? 'reservas-motorista.html' : 'reservas.html';
+  }
+
+  function logout(){
+    localStorage.removeItem('cr_token');
+    localStorage.removeItem('cr_user');
+    window.location.href = 'login.html';
+  }
+
+  function agruparPorMes(items){
+    const grupos = {};
+    items.forEach(item => {
+      const dataBase = item.createdAt || item.horario || new Date();
+      const data = new Date(dataBase);
+      const chave = data.toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+      if (!grupos[chave]) grupos[chave] = [];
+      grupos[chave].push(item);
+    });
+    return grupos;
+  }
+
+  async function carregarHistoricoEstudante(lista){
+    const res = await fetch(`${BASE}/trajeto`, { headers:{ Authorization:`Bearer ${token}` } });
+    const trajetos = await res.json();
+
+    if (!trajetos.length) {
+      lista.innerHTML = `<div class="empty-state"><div class="empty-icon">🕐</div>Nenhum trajeto salvo ainda.</div>`;
+      return;
+    }
+
+    const grupos = agruparPorMes(trajetos);
+
+    lista.innerHTML = Object.entries(grupos).map(([mes, items]) => `
+      <div class="data-header">${mes.charAt(0).toUpperCase() + mes.slice(1)}</div>
+      <div class="day-block">
+        ${items.map(t => `
+          <div class="day-trip">
+            <div class="day-trip-info">
+              <div class="day-trip-time">${t.partida} → ${t.destino}</div>
+              <div class="day-trip-local">${new Date(t.createdAt).toLocaleDateString('pt-BR')}</div>
+              <div class="day-trip-pax"><span class="tag-concluida">✔ Salvo</span></div>
+            </div>
+          </div>`).join('')}
+      </div>`).join('');
+  }
+
+  async function carregarHistoricoMotorista(lista){
+    const res = await fetch(`${BASE}/viagem/minhas`, { headers:{ Authorization:`Bearer ${token}` } });
+    const viagens = await res.json();
+    const concluidas = viagens.filter(v => String(v.status).toUpperCase() === 'CONCLUIDA');
+
+    if (!concluidas.length) {
+      lista.innerHTML = `<div class="empty-state"><div class="empty-icon">🕐</div>Nenhuma viagem concluída ainda.</div>`;
+      return;
+    }
+
+    const grupos = agruparPorMes(concluidas);
+
+    lista.innerHTML = Object.entries(grupos).map(([mes, items]) => `
+      <div class="data-header">${mes.charAt(0).toUpperCase() + mes.slice(1)}</div>
+      <div class="day-block">
+        ${items.map(v => {
+          const data = new Date(v.horario || v.createdAt);
+          const dataStr = data.toLocaleDateString('pt-BR');
+          const horaStr = data.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+          return `
+          <div class="day-trip">
+            <div class="day-trip-info">
+              <div class="day-trip-time">${v.partida} → ${v.destino}</div>
+              <div class="day-trip-local">${dataStr} às ${horaStr}</div>
+              <div class="day-trip-pax"><span class="tag-concluida">✔ Concluída</span></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`).join('');
+  }
+
+  async function carregarHistorico(){
+    const lista = document.getElementById('lista-historico');
+    try {
+      if (isMotorista()) {
+        await carregarHistoricoMotorista(lista);
+      } else {
+        await carregarHistoricoEstudante(lista);
+      }
+    } catch {
+      lista.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div>Erro ao carregar histórico.</div>`;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', carregarHistorico);
+</script>
+</body>
+</html>

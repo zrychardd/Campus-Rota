@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id          String   @id @default(cuid())
+  nome        String
+  sobrenome   String?
+  email       String   @unique
+  cpf         String?  @unique
+  ra          String?  @unique
+  senha       String
+  tipo        String   // "ESTUDANTE" | "MOTORISTA"
+  perguntaSeg String?  // pergunta de segurança
+  respostaSeg String?  // resposta (texto simples — sem hash pois precisa comparar)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  estudante   Estudante?
+  motorista   Motorista?
+  trajetos    Trajeto[]
+  reservas    Reserva[] @relation("EstudanteReservas")
+  aceitadas   Reserva[] @relation("MotoristaReservas")
+}
+
+model Estudante {
+  id           String  @id @default(cuid())
+  usuarioId    String  @unique
+  usuario      Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  ra           String  @unique
+  universidade String?
+  curso        String?
+  bolsa100     Boolean @default(true)
+  triagem      String  @default("PENDENTE")
+}
+
+model Motorista {
+  id         String   @id @default(cuid())
+  usuarioId  String   @unique
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  cpf        String   @unique
+  cnh        String?
+  veiculo    String?
+  placa      String?
+  capacidade Int      @default(8)
+  viagens    Viagem[]
+}
+
+model Trajeto {
+  id        String   @id @default(cuid())
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  partida   String
+  destino   String
+  frequente Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Reserva {
+  id          String   @id @default(cuid())
+  estudanteId String
+  motoristaId String?
+  viagemId    String?
+  partida     String
+  destino     String
+  horario     DateTime?
+  status      String   @default("AGUARDANDO") // AGUARDANDO | CONFIRMADA | RECUSADA
+  createdAt   DateTime @default(now())
+  estudante   Usuario  @relation("EstudanteReservas", fields: [estudanteId], references: [id])
+  motorista   Usuario? @relation("MotoristaReservas", fields: [motoristaId], references: [id])
+}
+
+model Viagem {
+  id          String    @id @default(cuid())
+  motoristaId String
+  motorista   Motorista @relation(fields: [motoristaId], references: [id])
+  partida     String
+  destino     String
+  horario     DateTime
+  status      String    @default("PENDENTE")
+  passageiros Int       @default(0)
+  createdAt   DateTime  @default(now())
+}

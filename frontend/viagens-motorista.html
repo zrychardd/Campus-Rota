@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Rota — Viagens Agendadas</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="phone" style="display:flex; flex-direction:column; min-height:640px;">
+
+  <!-- Topo -->
+  <div class="topbar">
+    <div class="logo">
+      <span class="logo-campus">CAMPUS</span>
+      <span class="logo-rota">ROTA</span>
+    </div>
+  </div>
+
+  <div style="font-size:20px; font-weight:700; padding:14px 20px 4px;">
+    Minhas Viagens Agendadas
+  </div>
+
+  <!-- Lista por dia -->
+  <div class="viagens-area">
+
+    <!-- Dia 1 -->
+    <div class="day-label">Amanhã, 09 de Outubro</div>
+    <div class="day-block">
+      <div class="day-trip">
+        <div class="day-trip-info">
+          <div class="day-trip-time">07:00h – 07:30h</div>
+          <div class="day-trip-local">Terminal Central</div>
+          <div class="day-trip-pax">8 Passageiros</div>
+        </div>
+        <button class="btn-det">VER DETALHES</button>
+      </div>
+      <div class="day-trip">
+        <div class="day-trip-info">
+          <div class="day-trip-time">07:45h – 08:15h</div>
+          <div class="day-trip-local">Universidade Principal</div>
+          <div class="day-trip-pax">8 Passageiros</div>
+        </div>
+        <button class="btn-det">VER DETALHES</button>
+      </div>
+      <div class="day-trip">
+        <div class="day-trip-info">
+          <div class="day-trip-time">12:00h – 12:30h</div>
+          <div class="day-trip-local">Bairro Sul</div>
+          <div class="day-trip-pax">8 Passageiros</div>
+        </div>
+        <button class="btn-det">VER DETALHES</button>
+      </div>
+      <div class="day-trip">
+        <div class="day-trip-info">
+          <div class="day-trip-time">13:00h – 13:30h</div>
+          <div class="day-trip-local">Bairro Sul</div>
+          <div class="day-trip-pax">8 Passageiros</div>
+        </div>
+        <button class="btn-det">VER DETALHES</button>
+      </div>
+    </div>
+
+    <!-- Dia 2 -->
+    <div class="day-label">Sexta, 10 de Outubro</div>
+    <div class="day-block">
+      <div class="day-trip">
+        <div class="day-trip-info">
+          <div class="day-trip-time">13:00h – 13:30h</div>
+          <div class="day-trip-local">Bairro Sul</div>
+          <div class="day-trip-pax">8 Passageiros</div>
+        </div>
+        <button class="btn-det">VER DETALHES</button>
+      </div>
+      <div class="day-trip">
+        <div class="day-trip-info">
+          <div class="day-trip-time">17:30h – 18:00h</div>
+          <div class="day-trip-local">Universidade Principal</div>
+          <div class="day-trip-pax">8 Passageiros</div>
+        </div>
+        <button class="btn-det">VER DETALHES</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Nav inferior -->
+  <div class="bottom-nav">
+    <button class="nav-item" onclick="goTo('home-motorista.html')">
+      <span class="ic">🏠</span><span>Home</span>
+    </button>
+    <button class="nav-item" onclick="goTo('historico-motorista.html')">
+      <span class="ic">🕐</span><span>Histórico</span>
+    </button>
+    <button class="nav-item active">
+      <span class="ic">🪑</span><span>Reservas</span>
+    </button>
+    <button class="nav-item" onclick="goTo('perfil.html')">
+      <span class="ic">👤</span><span>Perfil</span>
+    </button>
+  </div>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Rota — Home</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .header-top{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 0}
+    .btn-sair{background:none;border:1px solid #ddd;border-radius:8px;padding:6px 14px;font-size:12px;color:#888;cursor:pointer}
+    .btn-sair:hover{background:#f5f5f5;color:#e53935}
+    .usuario-nome{font-size:13px;color:#888;padding:2px 20px 0}
+    .erro-msg{color:#e53935;font-size:12px;padding:0 20px;margin-top:4px;display:none}
+    .route-card{background:#f2f2f2;border-radius:12px;margin:0 20px 10px;padding:13px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;border:none;width:calc(100% - 40px);text-align:left}
+    .route-card:hover{background:#e0e0e0}
+    .empty-state{text-align:center;color:#bbb;font-size:13px;padding:10px 20px}
+    .disponivel-card{background:#fff;border:1.5px solid var(--green);border-radius:12px;margin:0 20px 10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px #a8d00022}
+    .disponivel-info{flex:1}
+    .disponivel-rota{font-size:14px;font-weight:700;color:var(--text)}
+    .disponivel-sub{font-size:12px;color:#888;margin-top:2px}
+    .scroll-area{flex:1;overflow-y:auto}
+  </style>
+</head>
+<body>
+<div class="phone" style="display:flex;flex-direction:column;min-height:640px">
+
+  <div class="topbar">
+    <div class="logo"><span class="logo-campus">CAMPUS</span><span class="logo-rota">ROTA</span></div>
+  </div>
+
+  <div class="header-top">
+    <div>
+      <div class="home-title" style="padding:0">Encontre sua Rota</div>
+      <div class="usuario-nome" id="nome-usuario">Carregando...</div>
+    </div>
+  </div>
+
+  <div class="search-area" style="margin-top:14px">
+    <div class="inp-icon">
+      <span class="ic-l">📍</span>
+      <input class="inp" id="inp-partida" placeholder="Local de Partida" />
+      <span class="ic-r">🎯</span>
+    </div>
+    <div class="inp-icon">
+      <span class="ic-l">🎓</span>
+      <input class="inp" id="inp-destino" placeholder="Destino" />
+      <span class="ic-r">📅</span>
+    </div>
+    <div id="busca-erro" class="erro-msg"></div>
+    <button class="btn-green" id="btn-buscar" onclick="buscarViagem()">Buscar Viagens</button>
+  </div>
+
+  <div class="scroll-area">
+    <!-- Viagem disponível (aparece após busca) -->
+    <div id="sec-disponivel" style="display:none">
+      <div class="section-title" style="padding-bottom:6px">🟢 Viagem Disponível</div>
+      <div class="disponivel-card">
+        <div class="disponivel-info">
+          <div class="disponivel-rota" id="disp-rota">—</div>
+          <div class="disponivel-sub" id="disp-sub">Van Universitária • Buscando horário...</div>
+        </div>
+        <button class="btn-det" onclick="confirmarAgora()">Reservar</button>
+      </div>
+    </div>
+
+    <!-- Últimas viagens -->
+    <div class="section-title" style="padding-bottom:6px">🕐 Últimas Viagens</div>
+    <div id="lista-frequentes"><div class="empty-state">Nenhuma viagem ainda.</div></div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="nav-item active"><span class="ic">🏠</span><span>Home</span></button>
+    <button class="nav-item" onclick="goTo('historico.html')"><span class="ic">🕐</span><span>Histórico</span></button>
+    <button class="nav-item" onclick="goTo('reservas.html')"><span class="ic">🪑</span><span>Reservas</span></button>
+    <button class="nav-item" onclick="goTo('perfil.html')"><span class="ic">👤</span><span>Perfil</span></button>
+  </div>
+</div>
+
+<script>
+  var BASE  = 'http://localhost:3001/api';
+  var token = localStorage.getItem('cr_token');
+  var user  = JSON.parse(localStorage.getItem('cr_user') || 'null');
+  if (!token || !user) window.location.href = 'login.html';
+  if (user && user.tipo !== 'ESTUDANTE') window.location.href = 'home-motorista.html';
+
+  var partidaAtual = '';
+  var destinoAtual = '';
+
+  function formatarHorario(valor) {
+    if (!valor) return 'horário a definir';
+    var data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return 'horário a definir';
+    return data.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function goTo(p) { window.location.href = p; }
+  function logout() {
+    localStorage.removeItem('cr_token');
+    localStorage.removeItem('cr_user');
+    window.location.href = 'login.html';
+  }
+
+  function confirmarAgora() {
+    sessionStorage.setItem('cr_partida', partidaAtual);
+    sessionStorage.setItem('cr_destino', destinoAtual);
+    window.location.href = 'detalhe-viagem.html';
+  }
+
+  async function carregarPerfil() {
+    try {
+      var res  = await fetch(BASE + '/perfil/me', { headers: { Authorization: 'Bearer ' + token } });
+      var data = await res.json();
+      document.getElementById('nome-usuario').textContent = 'Olá, ' + data.nome + ' 👋';
+    } catch { document.getElementById('nome-usuario').textContent = 'Olá, ' + user.nome + ' 👋'; }
+  }
+
+  async function carregarFrequentes() {
+    var lista = document.getElementById('lista-frequentes');
+    try {
+      var res      = await fetch(BASE + '/trajeto', { headers: { Authorization: 'Bearer ' + token } });
+      var trajetos = await res.json();
+      if (!trajetos.length) { lista.innerHTML = '<div class="empty-state">Nenhuma viagem ainda.</div>'; return; }
+      lista.innerHTML = trajetos.slice(0, 5).map(function(t) {
+        return '<button class="route-card" onclick="preencherRota(\'' +
+          t.partida.replace(/'/g,"\\'") + '\',\'' + t.destino.replace(/'/g,"\\'") + '\')">' +
+          '<span style="font-size:16px">🕐</span>' +
+          '<span style="font-size:13px;color:#333;flex:1">' + t.partida + ' → ' + t.destino + '</span>' +
+          '<span style="font-size:11px;color:var(--blue);font-weight:600">Usar</span></button>';
+      }).join('');
+    } catch { lista.innerHTML = '<div class="empty-state">Erro ao carregar.</div>'; }
+  }
+
+  function preencherRota(partida, destino) {
+    document.getElementById('inp-partida').value = partida;
+    document.getElementById('inp-destino').value = destino;
+    mostrarDisponivel(partida, destino);
+  }
+
+  async function mostrarDisponivel(partida, destino) {
+    partidaAtual = partida;
+    destinoAtual = destino;
+    document.getElementById('disp-rota').textContent = '📍 ' + partida + '  →  🎓 ' + destino;
+    document.getElementById('disp-sub').textContent = 'Van Universitária • Buscando horário...';
+    document.getElementById('sec-disponivel').style.display = 'block';
+
+    try {
+      var res = await fetch(BASE + '/viagem/disponivel?partida=' + encodeURIComponent(partida) + '&destino=' + encodeURIComponent(destino), {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      var data = await res.json();
+      if (res.ok && data.horario) {
+        document.getElementById('disp-sub').textContent = 'Próxima viagem às ' + formatarHorario(data.horario) + ' • Confirme sua presença';
+      } else {
+        document.getElementById('disp-sub').textContent = 'Horário indisponível no momento';
+      }
+    } catch {
+      document.getElementById('disp-sub').textContent = 'Erro ao buscar horário';
+    }
+  }
+
+  async function buscarViagem() {
+    var partida = document.getElementById('inp-partida').value.trim();
+    var destino = document.getElementById('inp-destino').value.trim();
+    var erroEl  = document.getElementById('busca-erro');
+    var btn     = document.getElementById('btn-buscar');
+    erroEl.style.display = 'none';
+    if (!partida || !destino) { erroEl.textContent = 'Informe partida e destino.'; erroEl.style.display = 'block'; return; }
+
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    try {
+      await fetch(BASE + '/trajeto', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', Authorization:'Bearer ' + token },
+        body: JSON.stringify({ partida:partida, destino:destino, frequente:true })
+      });
+      mostrarDisponivel(partida, destino);
+      document.getElementById('inp-partida').value = '';
+      document.getElementById('inp-destino').value = '';
+      await carregarFrequentes();
+    } catch { erroEl.textContent = 'Erro. Verifique o backend.'; erroEl.style.display = 'block'; }
+    finally  { btn.disabled = false; btn.textContent = 'Buscar Viagens'; }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    carregarPerfil();
+    carregarFrequentes();
+  });
+</script>
+</body>
+</html>

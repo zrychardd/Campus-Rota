@@ -39,6 +39,61 @@ A plataforma permite que estudantes pesquisem rotas, reservem viagens e acompanh
 
 ---
 
+## 📦 Pré-requisitos
+
+Antes de executar o projeto, instale:
+
+### Node.js (já inclui npm)
+
+Versão recomendada:
+
+```txt
+Node.js 18+
+```
+
+Baixar:
+
+:contentReference[oaicite:0]{index=0}
+
+Verificar instalação:
+
+```bash
+node -v
+npm -v
+```
+
+---
+
+### Git
+
+Baixar:
+
+:contentReference[oaicite:1]{index=1}
+
+Verificar instalação:
+
+```bash
+git --version
+```
+
+---
+
+### Prisma CLI
+
+Instalar globalmente:
+
+```bash
+npm install -g prisma
+```
+
+Verificar:
+
+```bash
+prisma -v
+```
+
+---
+
 ## ⚙ Funcionalidades
 
 ### Estudante
@@ -73,9 +128,7 @@ A plataforma permite que estudantes pesquisem rotas, reservem viagens e acompanh
 - Cancelada
 
 ✔ Validação de dados
-
 ✔ Botão visualizar senha
-
 ✔ Persistência de login
 
 ---
@@ -108,10 +161,10 @@ Campus-Rota/
 
 ## 🚀 Como executar o projeto
 
-### 1 - Clonar o repositório
+### 1 - Clonar repositório
 
 ```bash
-git clone URL_DO_REPOSITORIO
+git clone https://github.com/zrychardd/Campus-Rota.git
 ```
 
 ### 2 - Entrar na pasta
@@ -139,7 +192,7 @@ npx prisma generate --schema=src/prisma/schema.prisma
 npx prisma db push --schema=src/prisma/schema.prisma
 ```
 
-### 6 - abrir painel prisma
+### 6 - Abrir Prisma Studio
 
 ```bash
 npx prisma studio --schema=src/prisma/schema.prisma

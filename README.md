@@ -67,7 +67,7 @@ npm -v
 
 Baixar:
 
-:contentReference[oaicite:1]{index=1}
+[Git](https://git-scm.com/install/)
 
 Verificar instalação:
 

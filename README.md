@@ -130,7 +130,9 @@ prisma -v
 - Cancelada
 
 ✔ Validação de dados
+
 ✔ Botão visualizar senha
+
 ✔ Persistência de login
 
 ---
